@@ -1,0 +1,37 @@
+{
+  "schemaVersion": 1,
+  "id": "iliketrains",
+  "version": "${version}",
+
+  "name": "I Like Trains",
+  "description": "Trains in minecraft",
+  "authors": [
+    "Stenlan"
+  ],
+  "contact": {
+    "homepage": "https://fabricmc.net/",
+    "sources": "https://github.com/FabricMC/fabric-example-mod"
+  },
+
+  "license": "CC0-1.0",
+  "icon": "assets/modid/icon.png",
+
+  "environment": "*",
+  "entrypoints": {
+    "main": [
+      "nl.lankreijer.stenlan.EntryPoint"
+    ]
+  },
+  "mixins": [
+    "iliketrains.mixins.json"
+  ],
+
+  "depends": {
+    "fabricloader": ">=0.7.4",
+    "fabric": "*",
+    "minecraft": "1.16.x"
+  },
+  "suggests": {
+    "flamingo": "*"
+  }
+}
