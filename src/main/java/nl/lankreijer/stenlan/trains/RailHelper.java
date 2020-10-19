@@ -7,7 +7,6 @@ import net.minecraft.util.math.Vec3d;
 import org.apache.commons.lang3.NotImplementedException;
 
 import java.util.Arrays;
-import java.util.HashMap;
 import java.util.Map;
 import java.util.stream.Collectors;
 
@@ -17,7 +16,7 @@ public class RailHelper {
         return Direction.fromVector(useX ? vec.x > 0 ? 1 : -1 : 0, 0, !useX ? vec.z > 0 ? 1 : -1 : 0);
     }
 
-    private static Map<RailShape, Pair<Direction, Direction>> DIR_MAP = Arrays.stream(RailShape.values()).collect(Collectors.toMap(d -> d, (shape) -> {
+    private static Map<RailShape, Pair<Direction, Direction>> DIR_MAP_EXIT = Arrays.stream(RailShape.values()).collect(Collectors.toMap(d -> d, (shape) -> {
         switch (shape) {
             case NORTH_SOUTH:
             case ASCENDING_SOUTH:
@@ -42,17 +41,18 @@ public class RailHelper {
         }
     }));
 
-    private static Map<RailShape, Pair<Direction, Direction>> DIR_MAP_EXIT = Arrays.stream(RailShape.values()).collect(Collectors.toMap(d -> d, (shape) -> {
-        Pair<Direction, Direction> entrances = DIR_MAP.get(shape);
+    private static Map<RailShape, Pair<Direction, Direction>> DIR_MAP_ENTRY = Arrays.stream(RailShape.values()).collect(Collectors.toMap(d -> d, (shape) -> {
+        Pair<Direction, Direction> entrances = DIR_MAP_EXIT.get(shape);
         return new Pair<>(entrances.getLeft().getOpposite(), entrances.getRight().getOpposite());
     }));
 
-    public static Pair<Direction, Direction> toEntryDirs(RailShape shape) {
-        return DIR_MAP.get(shape);
-    }
 
     public static Pair<Direction, Direction> toExitDirs(RailShape shape) {
         return DIR_MAP_EXIT.get(shape);
+    }
+
+    public static Pair<Direction, Direction> toEntryDirs(RailShape shape) {
+        return DIR_MAP_ENTRY.get(shape);
     }
 
     public static Direction entryToExit(RailShape shape, Direction entryDir) {

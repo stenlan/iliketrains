@@ -35,6 +35,7 @@ public abstract class MinecartEntityMixin {
             if(closestEntityC != null) {
                 ((ITrainCart)cThis).addWagon(closestEntityC);
             }
+//            ((ITrainCart)this).track();
             ci.setReturnValue(ActionResult.CONSUME);
             ci.cancel();
         }

@@ -8,4 +8,5 @@ public interface ITrainCart {
     boolean isWagon();
     void setWagon(boolean isWagon);
     BlockPos getRailPos();
+    void track();
 }

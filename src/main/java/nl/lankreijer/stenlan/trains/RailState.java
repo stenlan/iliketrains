@@ -20,13 +20,13 @@ public class RailState {
     private Vec3d toPos(Direction dir) {
         switch(dir) {
             case NORTH:
-                return new Vec3d(this.pos.getX() + 0.5, this.pos.getY(), this.pos.getZ());
+                return new Vec3d(this.pos.getX() + 0.5, this.pos.getY() + 0.0625, this.pos.getZ());
             case SOUTH:
-                return new Vec3d(this.pos.getX() + 0.5, this.pos.getY(), this.pos.getZ() + 1);
+                return new Vec3d(this.pos.getX() + 0.5, this.pos.getY() + 0.0625, this.pos.getZ() + 1);
             case WEST:
-                return new Vec3d(this.pos.getX(), this.pos.getY(), this.pos.getZ() + 0.5);
+                return new Vec3d(this.pos.getX(), this.pos.getY() + 0.0625, this.pos.getZ() + 0.5);
             case EAST:
-                return new Vec3d(this.pos.getX() + 1, this.pos.getY(), this.pos.getZ() + 0.5);
+                return new Vec3d(this.pos.getX() + 1, this.pos.getY() + 0.0625, this.pos.getZ() + 0.5);
             default:
                 throw new NotImplementedException("Invalid direction");
         }
@@ -39,7 +39,7 @@ public class RailState {
             case ASCENDING_WEST:
             case ASCENDING_NORTH:
             case ASCENDING_SOUTH:
-                if (dir != RailHelper.toEntryDirs(this.shape).getLeft()) { // not going uphill, TODO: smooth this out?
+                if (dir != RailHelper.toExitDirs(this.shape).getLeft()) { // not going uphill, TODO: smooth this out?
                     startPos = startPos.add(0, 1, 0);
                 }
             default:
@@ -56,7 +56,7 @@ public class RailState {
             case ASCENDING_WEST:
             case ASCENDING_NORTH:
             case ASCENDING_SOUTH:
-                if (dir == RailHelper.toEntryDirs(this.shape).getLeft()) { // going uphill
+                if (dir == RailHelper.toExitDirs(this.shape).getLeft()) { // going uphill
                     endPos = endPos.add(0, 1, 0);
                 }
             default:
@@ -65,9 +65,20 @@ public class RailState {
         return endPos;
     }
 
+    public Direction exitDir() {
+        return RailHelper.entryToExit(this.shape, this.dir);
+    }
+
     public Vec3d calcPos(double progress) {
         Vec3d startPos = startPos();
         Vec3d diff = endPos().subtract(startPos);
         return startPos.add(diff.multiply(progress));
+    }
+
+    public double calcProgress(Vec3d pos) { // TODO: take into account minecarts aren't exactly on y=0
+        Vec3d startPos = startPos();
+        Vec3d endDiff = endPos().subtract(startPos);
+        Vec3d currDiff = pos.subtract(startPos);
+        return Math.sqrt(currDiff.lengthSquared() / endDiff.lengthSquared()); // assumes pos is on line
     }
 }

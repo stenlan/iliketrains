@@ -4,11 +4,14 @@ import com.mojang.datafixers.util.Pair;
 import net.minecraft.block.AbstractRailBlock;
 import net.minecraft.block.BlockState;
 import net.minecraft.block.enums.RailShape;
+import net.minecraft.client.MinecraftClient;
 import net.minecraft.entity.Entity;
 import net.minecraft.entity.player.PlayerEntity;
 import net.minecraft.entity.vehicle.AbstractMinecartEntity;
 import net.minecraft.entity.vehicle.MinecartEntity;
+import net.minecraft.network.MessageType;
 import net.minecraft.tag.BlockTags;
+import net.minecraft.text.Text;
 import net.minecraft.util.math.*;
 import nl.lankreijer.stenlan.interfaces.ITrainCart;
 import nl.lankreijer.stenlan.trains.RailHelper;
@@ -42,19 +45,14 @@ public abstract class AbstractMinecartEntityMixin implements ITrainCart {
 
     @Shadow public abstract Direction getMovementDirection();
 
-    @Inject(method="tick()V", at=@At("HEAD"), cancellable = true)
+
+
+    @Inject(method="tick()V", at=@At(value="INVOKE", target="Lnet/minecraft/entity/vehicle/AbstractMinecartEntity;setRotation(FF)V", ordinal=0), cancellable = true)
     public void tickInject(CallbackInfo ci) {
         if (this.isWagon) {
             // ci.cancel();
         } else if (this.isLocomotive) {
-            Vec3d pos = cThis.getPos();
             BlockPos railPos = this.getRailPos();
-
-            double progressX = pos.x - railPos.getX();
-            double progressY = pos.y - railPos.getY();
-            double progressZ = pos.z - railPos.getZ();
-
-            Direction dir;
 
             BlockState blockState = cThis.world.getBlockState(railPos);
             if (!AbstractRailBlock.isRail(blockState)) {
@@ -66,36 +64,19 @@ public abstract class AbstractMinecartEntityMixin implements ITrainCart {
                 return;
             }
 
-            if (!prevRails.peekFirst().pos.equals(railPos)) {
-                dir = toDir(railPos, prevRails.peekFirst().pos);
+            Direction dir;
+            while (!prevRails.peekFirst().pos.equals(railPos)) {
+                dir = prevRails.peekFirst().exitDir();
                 if (dir == null) {
                     System.out.println("Dir is null!");
                     return;
                 }
+                System.out.println("Adding new rail state at " + railPos.toString());
                 prevRails.addFirst(new RailState(railPos, dir, blockState.get(((AbstractRailBlock)blockState.getBlock()).getShapeProperty())));
                 prevRails.removeLast();
-            } else {
-                dir = prevRails.peekFirst().dir;
             }
 
-            double progress = 0;
-
-            switch (dir) {
-                case NORTH:
-                    progress = 1d - progressZ;
-                    break;
-                case SOUTH:
-                    progress = progressZ;
-                    break;
-                case WEST:
-                    progress = 1d - progressX;
-                    break;
-                case EAST:
-                    progress = progressX;
-                    break;
-                default:
-                    progress = 0.5d;
-            }
+            double progress = prevRails.peekFirst().calcProgress(cThis.getPos());
 
             Iterator<RailState> it = prevRails.iterator();
             it.next();
@@ -104,6 +85,17 @@ public abstract class AbstractMinecartEntityMixin implements ITrainCart {
             }
         }
     }
+
+    @Inject(method="tick()V", at=@At(value="INVOKE", target="Lnet/minecraft/entity/vehicle/AbstractMinecartEntity;setRotation(FF)V", ordinal=1), cancellable = true)
+    public void tickInject2(CallbackInfo ci) {
+        tickInject(ci);
+    }
+
+    @Inject(method="tick()V", at=@At(value="FIELD", target="Lnet/minecraft/entity/vehicle/AbstractMinecartEntity;firstUpdate:Z"), cancellable = true)
+    public void tickInject3(CallbackInfo ci) {
+        tickInject(ci);
+    }
+
 
     @Inject(method="moveOffRail", at=@At("HEAD"))
     private void moveOffRailInject(CallbackInfo ci) {
@@ -120,34 +112,9 @@ public abstract class AbstractMinecartEntityMixin implements ITrainCart {
     private void placeBehind(MinecartEntity me, RailState railState, double progress) {
         Vec3d pos = railState.calcPos(progress);
 
-        me.setVelocity(pos.subtract(me.getPos()));
+        me.setVelocity(pos.subtract(me.getPos())); // TODO: ?? clientX/clientXVelocity???
 
-//		BlockPos blockPos = new BlockPos(i, j, k);
-//		BlockState blockState = cThis.world.getBlockState(blockPos);
-//		if (AbstractRailBlock.isRail(blockState)) {
-//			double d = x;
-//			double e = y;
-//			double f = z;
-//			Vec3d vec3d = cThis.snapPositionToRail(d, e, f);
-//			e = blockPos.getY();
-//			AbstractRailBlock abstractRailBlock = (AbstractRailBlock)blockState.getBlock();
-//
-//			RailShape railShape = blockState.get(abstractRailBlock.getShapeProperty());
-//
-//			Pair<Vec3i, Vec3i> pair = getAdjacentRailPositionsByShape(railShape);
-//			Vec3i target = pair.getFirst();
-//			if(blockPos.getManhattanDistance(target) == 0) { // same position
-//				target = pair.getSecond();
-//			}
-//			me.teleport(target.getX(), target.getY(), target.getZ());
-//
-//
-//			if (blockState.isOf(Blocks.ACTIVATOR_RAIL)) {
-//				// this.onActivatorRail(i, j, k, (Boolean)blockState.get(PoweredRailBlock.POWERED));
-//			}
-//		} else {
-//			// this.moveOffRail();
-//		}
+        // me.updatePosition(pos.x, pos.y, pos.z);
     }
 
     @Override
@@ -169,6 +136,14 @@ public abstract class AbstractMinecartEntityMixin implements ITrainCart {
         return Direction.fromVector(MathHelper.clamp(diff.getX(), -1, 1), 0, MathHelper.clamp(diff.getZ(), -1, 1));
     }
 
+    @Override
+    public void track() {
+        this.isLocomotive = true;
+        BlockPos railPos = getRailPos();
+        Direction dir = this.getMovementDirection();
+        BlockState blockState = cThis.world.getBlockState(railPos);
+        this.prevRails.addLast(new RailState(railPos, dir, blockState.get(((AbstractRailBlock)blockState.getBlock()).getShapeProperty())));
+    }
 
     @Override
     public void addWagon(MinecartEntity e) { // TODO: add new previous pos and direction
@@ -189,9 +164,12 @@ public abstract class AbstractMinecartEntityMixin implements ITrainCart {
         e.noClip = true;
         e.setNoGravity(true);
 
+        if(!this.isLocomotive) {
+            this.prevRails.addLast(new RailState(blockPos, dir, blockState.get(((AbstractRailBlock)blockState.getBlock()).getShapeProperty())));
+        }
+
         this.isLocomotive = true;
         this.wagons.add(e);
-        this.prevRails.addLast(new RailState(blockPos, dir, blockState.get(((AbstractRailBlock)blockState.getBlock()).getShapeProperty())));
         this.prevRails.addLast(new RailState(blockPos, dir, blockState.get(((AbstractRailBlock)blockState.getBlock()).getShapeProperty())));
         ((ITrainCart)e).setWagon(true);
     }
