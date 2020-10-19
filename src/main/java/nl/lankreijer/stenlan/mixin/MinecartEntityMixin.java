@@ -25,7 +25,7 @@ public abstract class MinecartEntityMixin {
             AtomicReference<Double> closestDistance = new AtomicReference<>(Double.MAX_VALUE);
             cThis.world.getOtherEntities(cThis, cThis.getBoundingBox().expand(4.0D), (e) -> {
                 double newDist;
-                if ((e instanceof MinecartEntity) && (newDist = cThis.squaredDistanceTo(e)) < closestDistance.get()) {
+                if ((e instanceof MinecartEntity) && (newDist = cThis.squaredDistanceTo(e)) < closestDistance.get() && !((ITrainCart)e).isWagon()) {
                     closestEntity.set((MinecartEntity) e);
                     closestDistance.set(newDist);
                 }

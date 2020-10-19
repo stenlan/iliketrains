@@ -4,6 +4,8 @@ import com.mojang.datafixers.util.Pair;
 import net.minecraft.block.AbstractRailBlock;
 import net.minecraft.block.BlockState;
 import net.minecraft.block.enums.RailShape;
+import net.minecraft.entity.Entity;
+import net.minecraft.entity.player.PlayerEntity;
 import net.minecraft.entity.vehicle.AbstractMinecartEntity;
 import net.minecraft.entity.vehicle.MinecartEntity;
 import net.minecraft.tag.BlockTags;
@@ -16,6 +18,7 @@ import org.spongepowered.asm.mixin.Shadow;
 import org.spongepowered.asm.mixin.injection.At;
 import org.spongepowered.asm.mixin.injection.Inject;
 import org.spongepowered.asm.mixin.injection.callback.CallbackInfo;
+import org.spongepowered.asm.mixin.injection.callback.LocalCapture;
 
 import java.util.ArrayDeque;
 import java.util.ArrayList;
@@ -45,31 +48,35 @@ public abstract class AbstractMinecartEntityMixin implements ITrainCart {
             // ci.cancel();
         } else if (this.isLocomotive) {
             Vec3d pos = cThis.getPos();
-            int p = MathHelper.floor(pos.x);
-            int q = MathHelper.floor(pos.y);
-            int r = MathHelper.floor(pos.z);
+            BlockPos railPos = this.getRailPos();
 
-            double progressX = pos.x - p;
-            double progressY = pos.y - q;
-            double progressZ = pos.z - r;
+            double progressX = pos.x - railPos.getX();
+            double progressY = pos.y - railPos.getY();
+            double progressZ = pos.z - railPos.getZ();
 
-            Direction dir = getMovementDirection();
+            Direction dir;
 
-            if (cThis.world.getBlockState(new BlockPos(p, q - 1, r)).isIn(BlockTags.RAILS)) {
-                --q;
+            BlockState blockState = cThis.world.getBlockState(railPos);
+            if (!AbstractRailBlock.isRail(blockState)) {
+                System.out.println("Block " + railPos.toString() + " is not a rail :(. My pos: " + cThis.getPos().toString());
+                return;
+            }
+            if(prevRails.peekFirst() == null) {
+                System.out.println("First is null!");
+                return;
             }
 
-            BlockPos blockPos = new BlockPos(p, q, r);
-            BlockState blockState = cThis.world.getBlockState(blockPos);
-            assert AbstractRailBlock.isRail(blockState);
-            assert prevRails.peekFirst() != null;
-
-            if (!prevRails.peekFirst().pos.equals(blockPos)) {
-                prevRails.addFirst(new RailState(blockPos, dir, blockState.get(((AbstractRailBlock)blockState.getBlock()).getShapeProperty())));
+            if (!prevRails.peekFirst().pos.equals(railPos)) {
+                dir = toDir(railPos, prevRails.peekFirst().pos);
+                if (dir == null) {
+                    System.out.println("Dir is null!");
+                    return;
+                }
+                prevRails.addFirst(new RailState(railPos, dir, blockState.get(((AbstractRailBlock)blockState.getBlock()).getShapeProperty())));
                 prevRails.removeLast();
+            } else {
+                dir = prevRails.peekFirst().dir;
             }
-
-            assert prevRails.size() == this.wagons.size();
 
             double progress = 0;
 
@@ -91,16 +98,29 @@ public abstract class AbstractMinecartEntityMixin implements ITrainCart {
             }
 
             Iterator<RailState> it = prevRails.iterator();
+            it.next();
             for (int i = 0; i < this.wagons.size(); i++) {
                 placeBehind(wagons.get(i), it.next(), progress);
             }
         }
     }
 
+    @Inject(method="moveOffRail", at=@At("HEAD"))
+    private void moveOffRailInject(CallbackInfo ci) {
+        System.out.println("moving off rail!!");
+    }
+
+    /*@Inject(method="pushAwayFrom", at=@At("HEAD"), cancellable = true, locals= LocalCapture.CAPTURE_FAILHARD)
+    private void pushAwayFromInject(Entity entity, CallbackInfo ci) {
+        if (this.isWagon || (this.isLocomotive && !(entity instanceof PlayerEntity))) {
+            ci.cancel();
+        }
+    }*/
+
     private void placeBehind(MinecartEntity me, RailState railState, double progress) {
         Vec3d pos = railState.calcPos(progress);
 
-        me.teleport(pos.x, pos.y, pos.z);
+        me.setVelocity(pos.subtract(me.getPos()));
 
 //		BlockPos blockPos = new BlockPos(i, j, k);
 //		BlockState blockState = cThis.world.getBlockState(blockPos);
@@ -130,27 +150,48 @@ public abstract class AbstractMinecartEntityMixin implements ITrainCart {
 //		}
     }
 
-
     @Override
-    public void addWagon(MinecartEntity e) { // TODO: add new previous pos and direction
+    public BlockPos getRailPos() {
         Vec3d pos = cThis.getPos();
         int p = MathHelper.floor(pos.x);
         int q = MathHelper.floor(pos.y);
         int r = MathHelper.floor(pos.z);
 
-        Direction dir = getMovementDirection();
-
         if (cThis.world.getBlockState(new BlockPos(p, q - 1, r)).isIn(BlockTags.RAILS)) {
             --q;
         }
 
-        BlockPos blockPos = (new BlockPos(p, q, r)).subtract(dir.getVector());
+        return new BlockPos(p, q, r);
+    }
+
+    private static Direction toDir(BlockPos from, BlockPos to) {
+        Vec3i diff = to.subtract(from);
+        return Direction.fromVector(MathHelper.clamp(diff.getX(), -1, 1), 0, MathHelper.clamp(diff.getZ(), -1, 1));
+    }
+
+
+    @Override
+    public void addWagon(MinecartEntity e) { // TODO: add new previous pos and direction
+        BlockPos railPos = getRailPos();
+        BlockPos otherPos = ((ITrainCart)e).getRailPos();
+
+        Direction dir = toDir(otherPos, railPos);
+
+        BlockPos blockPos = railPos.subtract(dir.getVector());
         BlockState blockState = cThis.world.getBlockState(blockPos);
-        assert AbstractRailBlock.isRail(blockState);
+        System.out.println(dir.toString());
+        if(!AbstractRailBlock.isRail(blockState)) {
+            System.out.println("Not a rail adjacent!");
+            return;
+        }
         assert prevRails.peekFirst() != null;
+
+        e.noClip = true;
+        e.setNoGravity(true);
 
         this.isLocomotive = true;
         this.wagons.add(e);
+        this.prevRails.addLast(new RailState(blockPos, dir, blockState.get(((AbstractRailBlock)blockState.getBlock()).getShapeProperty())));
         this.prevRails.addLast(new RailState(blockPos, dir, blockState.get(((AbstractRailBlock)blockState.getBlock()).getShapeProperty())));
         ((ITrainCart)e).setWagon(true);
     }

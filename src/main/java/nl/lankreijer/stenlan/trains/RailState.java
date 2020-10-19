@@ -4,6 +4,7 @@ import net.minecraft.block.enums.RailShape;
 import net.minecraft.util.math.BlockPos;
 import net.minecraft.util.math.Direction;
 import net.minecraft.util.math.Vec3d;
+import org.apache.commons.lang3.NotImplementedException;
 
 public class RailState {
     public BlockPos pos;
@@ -16,29 +17,57 @@ public class RailState {
         this.shape = shape;
     }
 
-    public Vec3d calcPos(double progress) {
-        Vec3d pos = new Vec3d(this.pos.getX(), this.pos.getY(), this.pos.getZ());
+    private Vec3d toPos(Direction dir) {
+        switch(dir) {
+            case NORTH:
+                return new Vec3d(this.pos.getX() + 0.5, this.pos.getY(), this.pos.getZ());
+            case SOUTH:
+                return new Vec3d(this.pos.getX() + 0.5, this.pos.getY(), this.pos.getZ() + 1);
+            case WEST:
+                return new Vec3d(this.pos.getX(), this.pos.getY(), this.pos.getZ() + 0.5);
+            case EAST:
+                return new Vec3d(this.pos.getX() + 1, this.pos.getY(), this.pos.getZ() + 0.5);
+            default:
+                throw new NotImplementedException("Invalid direction");
+        }
+    }
+
+    public Vec3d startPos() {
+        Vec3d startPos = this.toPos(this.dir.getOpposite());
         switch (shape) {
-            case NORTH_SOUTH:
-                switch(dir) {
-                    case NORTH:
-                        return pos.add(0, 0, 1 - progress);
-                    case SOUTH:
-                        return pos.add(0, 0, progress);
-                    default:
-                        return pos.add(0.5, 0, 0.5);
-                }
-            case EAST_WEST:
-                switch(dir) {
-                    case EAST:
-                        return pos.add(0, 0, progress);
-                    case WEST:
-                        return pos.add(0, 0, 1-progress);
-                    default:
-                        return pos.add(0.5, 0, 0.5);
+            case ASCENDING_EAST:
+            case ASCENDING_WEST:
+            case ASCENDING_NORTH:
+            case ASCENDING_SOUTH:
+                if (dir != RailHelper.toEntryDirs(this.shape).getLeft()) { // not going uphill, TODO: smooth this out?
+                    startPos = startPos.add(0, 1, 0);
                 }
             default:
-                return pos.add(0.5, 0, 0.5);
+                break;
         }
+        return startPos;
+    }
+
+    public Vec3d endPos() {
+        Direction endDir = RailHelper.entryToExit(this.shape, this.dir);
+        Vec3d endPos = toPos(endDir);
+        switch (shape) {
+            case ASCENDING_EAST:
+            case ASCENDING_WEST:
+            case ASCENDING_NORTH:
+            case ASCENDING_SOUTH:
+                if (dir == RailHelper.toEntryDirs(this.shape).getLeft()) { // going uphill
+                    endPos = endPos.add(0, 1, 0);
+                }
+            default:
+                break;
+        }
+        return endPos;
+    }
+
+    public Vec3d calcPos(double progress) {
+        Vec3d startPos = startPos();
+        Vec3d diff = endPos().subtract(startPos);
+        return startPos.add(diff.multiply(progress));
     }
 }

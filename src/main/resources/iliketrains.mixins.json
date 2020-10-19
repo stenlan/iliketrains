@@ -4,10 +4,10 @@
   "package": "nl.lankreijer.stenlan.mixin",
   "compatibilityLevel": "JAVA_8",
   "mixins": [
-  ],
-  "client": [
     "AbstractMinecartEntityMixin",
     "MinecartEntityMixin"
+  ],
+  "client": [
   ],
   "injectors": {
     "defaultRequire": 1
