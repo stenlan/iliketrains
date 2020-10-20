@@ -2,6 +2,7 @@ package nl.lankreijer.stenlan.mixin;
 
 import net.minecraft.block.AbstractRailBlock;
 import net.minecraft.block.BlockState;
+import net.minecraft.client.MinecraftClient;
 import net.minecraft.entity.Entity;
 import net.minecraft.entity.EntityType;
 import net.minecraft.entity.vehicle.AbstractMinecartEntity;
@@ -23,7 +24,7 @@ import java.util.Iterator;
 
 @Mixin(AbstractMinecartEntity.class)
 public abstract class AbstractMinecartEntityMixin extends Entity implements ITrainCart {
-    private static double cartDistance = 1.5d; // at least 1
+    private static double cartDistance = 1.2d; // at least 1
     private ArrayList<MinecartEntity> wagons = new ArrayList<>();
     private AbstractMinecartEntity cThis = ((AbstractMinecartEntity)(Object)this);
     ArrayDeque<RailState> prevRails = new ArrayDeque<>();
@@ -85,6 +86,7 @@ public abstract class AbstractMinecartEntityMixin extends Entity implements ITra
                 progress = (distance - cartDistance) / state.railLength(); // TODO: change meaning of progress to actual length?
                 MinecartEntity e = wagons.get(i);
                 placeBehind(e, state, progress);
+                // MinecraftClient.getInstance().getEntityRenderDispatcher().getRenderer(e).render();
                 // ((ITrainCart)e).wagonTick();
             }
         }
@@ -179,5 +181,15 @@ public abstract class AbstractMinecartEntityMixin extends Entity implements ITra
     @Override
     public void setWagon(boolean wagon) {
         isWagon = wagon;
+    }
+
+    @Override
+    public boolean isLocomotive() {
+        return isLocomotive;
+    }
+
+    @Override
+    public ArrayList<MinecartEntity> getWagons() {
+        return this.wagons;
     }
 }
