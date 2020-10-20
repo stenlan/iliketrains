@@ -7,6 +7,9 @@ import net.minecraft.util.math.Vec3d;
 import org.apache.commons.lang3.NotImplementedException;
 
 public class RailState {
+    private static final double SQRT_2 = Math.sqrt(2.0);
+    private static final double SQRT_0_5 = Math.sqrt(0.5);
+
     public BlockPos pos;
     public Direction dir; // direction in which the minecart ENTERED this block
     public RailShape shape;
@@ -15,6 +18,23 @@ public class RailState {
         this.pos = pos;
         this.dir = dir;
         this.shape = shape;
+    }
+
+    public double railLength() {
+        switch (shape) {
+            case ASCENDING_EAST:
+            case ASCENDING_WEST:
+            case ASCENDING_NORTH:
+            case ASCENDING_SOUTH:
+                return SQRT_2;
+            case SOUTH_EAST:
+            case SOUTH_WEST:
+            case NORTH_WEST:
+            case NORTH_EAST:
+                return SQRT_0_5;
+            default:
+                return 1;
+        }
     }
 
     private Vec3d toPos(Direction dir) {
