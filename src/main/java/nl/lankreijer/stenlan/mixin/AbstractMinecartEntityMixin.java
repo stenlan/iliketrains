@@ -26,6 +26,7 @@ import java.util.Iterator;
 public abstract class AbstractMinecartEntityMixin extends Entity implements ITrainCart {
     private static double cartDistance = 1.2d; // at least 1
     private ArrayList<MinecartEntity> wagons = new ArrayList<>();
+    private Entity locomotive;
     private AbstractMinecartEntity cThis = ((AbstractMinecartEntity)(Object)this);
     ArrayDeque<RailState> prevRails = new ArrayDeque<>();
     private boolean isWagon = false;
@@ -146,8 +147,9 @@ public abstract class AbstractMinecartEntityMixin extends Entity implements ITra
 
     @Override
     public void addWagon(MinecartEntity e) { // TODO: add new previous pos and direction
+        ITrainCart cart = (ITrainCart)e;
         BlockPos railPos = getRailPos();
-        BlockPos otherPos = ((ITrainCart)e).getRailPos();
+        BlockPos otherPos = cart.getRailPos();
 
         Direction dir = toDir(otherPos, railPos);
 
@@ -169,6 +171,7 @@ public abstract class AbstractMinecartEntityMixin extends Entity implements ITra
 
         this.isLocomotive = true;
         this.wagons.add(e);
+        cart.setLocomotive(this);
         this.prevRails.addLast(new RailState(blockPos, dir, blockState.get(((AbstractRailBlock)blockState.getBlock()).getShapeProperty())));
         ((ITrainCart)e).setWagon(true);
     }
@@ -186,6 +189,16 @@ public abstract class AbstractMinecartEntityMixin extends Entity implements ITra
     @Override
     public boolean isLocomotive() {
         return isLocomotive;
+    }
+
+    @Override
+    public void setLocomotive(Entity e){
+        this.locomotive = e;
+    }
+
+    @Override
+    public Entity getLocomotive() {
+        return this.locomotive;
     }
 
     @Override

@@ -1,5 +1,6 @@
 package nl.lankreijer.stenlan.interfaces;
 
+import net.minecraft.entity.Entity;
 import net.minecraft.entity.vehicle.AbstractMinecartEntity;
 import net.minecraft.entity.vehicle.MinecartEntity;
 import net.minecraft.util.math.BlockPos;
@@ -14,4 +15,6 @@ public interface ITrainCart {
     void setWagon(boolean isWagon);
     BlockPos getRailPos();
     void track();
+    Entity getLocomotive();
+    void setLocomotive(Entity loc);
 }
