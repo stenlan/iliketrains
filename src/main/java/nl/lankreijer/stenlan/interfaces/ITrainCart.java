@@ -17,4 +17,5 @@ public interface ITrainCart {
     void track();
     Entity getLocomotive();
     void setLocomotive(Entity loc);
+    void semiTick();
 }

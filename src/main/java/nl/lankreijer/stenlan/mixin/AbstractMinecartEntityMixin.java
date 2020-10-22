@@ -2,7 +2,8 @@ package nl.lankreijer.stenlan.mixin;
 
 import net.minecraft.block.AbstractRailBlock;
 import net.minecraft.block.BlockState;
-import net.minecraft.client.MinecraftClient;
+import net.minecraft.block.Blocks;
+import net.minecraft.block.PoweredRailBlock;
 import net.minecraft.entity.Entity;
 import net.minecraft.entity.EntityType;
 import net.minecraft.entity.vehicle.AbstractMinecartEntity;
@@ -32,18 +33,42 @@ public abstract class AbstractMinecartEntityMixin extends Entity implements ITra
     private boolean isWagon = false;
     private boolean isLocomotive = false;
 
+    @Shadow
+    private double clientX;
+    @Shadow
+    private double clientY;
+    @Shadow
+    private double clientZ;
+
+    @Shadow
+    private int clientInterpolationSteps;
+
+    @Shadow
+    private double clientYaw;
+
+    @Shadow
+    private double clientPitch;
+
+    @Shadow
+    private boolean yawFlipped;
+
+
     public AbstractMinecartEntityMixin(EntityType<?> type, World world) {
         super(type, world);
     }
 
     @Shadow public abstract Direction getMovementDirection();
 
-
-    @Inject(method="tick()V", at=@At(value="INVOKE", target="Lnet/minecraft/entity/vehicle/AbstractMinecartEntity;setRotation(FF)V", ordinal=0), cancellable = true) // Order-dependent
-    public void tickInject(CallbackInfo ci) {
+    @Inject(method="tick()V", at=@At("HEAD"), cancellable=true)
+    public void tickInjectHead(CallbackInfo ci) {
         if (this.isWagon) {
             ci.cancel();
-        } else if (this.isLocomotive) {
+        }
+    }
+
+    @Inject(method="tick()V", at=@At(value="INVOKE", target="Lnet/minecraft/entity/vehicle/AbstractMinecartEntity;setRotation(FF)V", ordinal=0)) // Order-dependent
+    public void tickInject(CallbackInfo ci) {
+        if (this.isLocomotive) {
             BlockPos railPos = this.getRailPos();
 
             BlockState blockState = cThis.world.getBlockState(railPos);
@@ -74,7 +99,16 @@ public abstract class AbstractMinecartEntityMixin extends Entity implements ITra
             Iterator<RailState> it = prevRails.iterator();
             RailState state = it.next(); // we always have the first cart
 
-            double progress = state.calcProgress(cThis.getPos());
+//            Vec3d pos;
+//            if (this.world.isClient) {
+//                System.out.println("yup");
+//                double d = this.clientX;
+//                pos = new Vec3d(this.clientX, this.clientY, this.clientZ).add(this.getVelocity());
+//            } else {
+//                pos = this.getPos();
+//            }
+
+            double progress = state.calcProgress(this.getPos());
 
             for (int i = 0; i < this.wagons.size(); i++) {
                 double distance = progress * state.railLength(); // distance to start of current rail
@@ -112,10 +146,71 @@ public abstract class AbstractMinecartEntityMixin extends Entity implements ITra
     private void placeBehind(MinecartEntity me, RailState railState, double progress) {
         Vec3d pos = railState.calcPos(progress);
 
-        me.setVelocity(pos.subtract(me.getPos())); // TODO: ?? clientX/clientXVelocity???
+        Vec3d target = pos.subtract(me.getPos());
 
-        // me.updatePosition(pos.x, pos.y, pos.z);
+        me.setVelocity(target); // TODO: ?? clientX/clientXVelocity???
+        ((ITrainCart)me).semiTick();
     }
+
+    @Override
+    public void semiTick(){
+        if (this.world.isClient) {
+            if (this.clientInterpolationSteps > 0) {
+                double d = this.getX() + (this.clientX - this.getX()) / (double)this.clientInterpolationSteps;
+                double e = this.getY() + (this.clientY - this.getY()) / (double)this.clientInterpolationSteps;
+                double f = this.getZ() + (this.clientZ - this.getZ()) / (double)this.clientInterpolationSteps;
+                double g = MathHelper.wrapDegrees(this.clientYaw - (double)this.yaw);
+                this.yaw = (float)((double)this.yaw + g / (double)this.clientInterpolationSteps);
+                this.pitch = (float)((double)this.pitch + (this.clientPitch - (double)this.pitch) / (double)this.clientInterpolationSteps);
+                --this.clientInterpolationSteps;
+                this.updatePosition(d, e, f);
+                this.setRotation(this.yaw, this.pitch);
+            } else {
+                this.refreshPosition();
+                this.setRotation(this.yaw, this.pitch);
+            }
+
+        } else {
+            int i = MathHelper.floor(this.getX());
+            int j = MathHelper.floor(this.getY());
+            int k = MathHelper.floor(this.getZ());
+            if (this.world.getBlockState(new BlockPos(i, j - 1, k)).isIn(BlockTags.RAILS)) {
+                --j;
+            }
+
+            BlockPos blockPos = new BlockPos(i, j, k);
+            BlockState blockState = this.world.getBlockState(blockPos);
+            if (AbstractRailBlock.isRail(blockState)) {
+                this.moveOnRail(blockPos, blockState);
+            } else {
+                this.moveOffRail();
+            }
+
+            this.pitch = 0.0F;
+            double h = this.prevX - this.getX();
+            double l = this.prevZ - this.getZ();
+            if (h * h + l * l > 0.001D) {
+                this.yaw = (float) (MathHelper.atan2(l, h) * 180.0D / 3.141592653589793D);
+                if (this.yawFlipped) {
+                    this.yaw += 180.0F;
+                }
+            }
+
+            double m = (double) MathHelper.wrapDegrees(this.yaw - this.prevYaw);
+            if (m < -170.0D || m >= 170.0D) {
+                this.yaw += 180.0F;
+                this.yawFlipped = !this.yawFlipped;
+            }
+
+            this.setRotation(this.yaw, this.pitch);
+        }
+    }
+
+    @Shadow
+    protected abstract void moveOnRail(BlockPos blockPos, BlockState blockState);
+
+    @Shadow
+    protected abstract void moveOffRail();
 
     @Override
     public BlockPos getRailPos() {
@@ -168,6 +263,12 @@ public abstract class AbstractMinecartEntityMixin extends Entity implements ITra
         if(!this.isLocomotive) {
             this.prevRails.addLast(new RailState(blockPos, dir, blockState.get(((AbstractRailBlock)blockState.getBlock()).getShapeProperty())));
         }
+
+        if(this.getEntityId() > e.getEntityId()) {
+            // IClientWorldAccessorMixin world = (IClientWorldAccessorMixin);
+            System.out.println("yup");
+        }
+
 
         this.isLocomotive = true;
         this.wagons.add(e);
