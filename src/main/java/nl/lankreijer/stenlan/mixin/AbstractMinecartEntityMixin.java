@@ -17,6 +17,7 @@ import org.spongepowered.asm.mixin.Mixin;
 import org.spongepowered.asm.mixin.Shadow;
 import org.spongepowered.asm.mixin.injection.At;
 import org.spongepowered.asm.mixin.injection.Inject;
+import org.spongepowered.asm.mixin.injection.Redirect;
 import org.spongepowered.asm.mixin.injection.callback.CallbackInfo;
 
 import java.util.ArrayDeque;
@@ -28,7 +29,6 @@ public abstract class AbstractMinecartEntityMixin extends Entity implements ITra
     private static double cartDistance = 1.2d; // at least 1
     private ArrayList<MinecartEntity> wagons = new ArrayList<>();
     private Entity locomotive;
-    private AbstractMinecartEntity cThis = ((AbstractMinecartEntity)(Object)this);
     ArrayDeque<RailState> prevRails = new ArrayDeque<>();
     private boolean isWagon = false;
     private boolean isLocomotive = false;
@@ -71,9 +71,9 @@ public abstract class AbstractMinecartEntityMixin extends Entity implements ITra
         if (this.isLocomotive) {
             BlockPos railPos = this.getRailPos();
 
-            BlockState blockState = cThis.world.getBlockState(railPos);
+            BlockState blockState = this.world.getBlockState(railPos);
             if (!AbstractRailBlock.isRail(blockState)) {
-                System.out.println("Block " + railPos.toString() + " is not a rail :(. My pos: " + cThis.getPos().toString());
+                System.out.println("Block " + railPos.toString() + " is not a rail :(. My pos: " + this.getPos().toString());
                 return;
             }
             if(prevRails.peekFirst() == null) {
@@ -214,12 +214,12 @@ public abstract class AbstractMinecartEntityMixin extends Entity implements ITra
 
     @Override
     public BlockPos getRailPos() {
-        Vec3d pos = cThis.getPos();
+        Vec3d pos = this.getPos();
         int p = MathHelper.floor(pos.x);
-        int q = MathHelper.floor(pos.y);
+        int q = (int) Math.round(pos.y);
         int r = MathHelper.floor(pos.z);
 
-        if (cThis.world.getBlockState(new BlockPos(p, q - 1, r)).isIn(BlockTags.RAILS)) {
+        if (this.world.getBlockState(new BlockPos(p, q - 1, r)).isIn(BlockTags.RAILS)) {
             --q;
         }
 
@@ -236,7 +236,7 @@ public abstract class AbstractMinecartEntityMixin extends Entity implements ITra
         this.isLocomotive = true;
         BlockPos railPos = getRailPos();
         Direction dir = this.getMovementDirection();
-        BlockState blockState = cThis.world.getBlockState(railPos);
+        BlockState blockState = this.world.getBlockState(railPos);
         this.prevRails.addLast(new RailState(railPos, dir, blockState.get(((AbstractRailBlock)blockState.getBlock()).getShapeProperty())));
     }
 
@@ -249,7 +249,7 @@ public abstract class AbstractMinecartEntityMixin extends Entity implements ITra
         Direction dir = toDir(otherPos, railPos);
 
         BlockPos blockPos = railPos.subtract(dir.getVector());
-        BlockState blockState = cThis.world.getBlockState(blockPos);
+        BlockState blockState = this.world.getBlockState(blockPos);
         System.out.println(dir.toString());
         if(!AbstractRailBlock.isRail(blockState)) {
             System.out.println("Not a rail adjacent!");
@@ -275,6 +275,26 @@ public abstract class AbstractMinecartEntityMixin extends Entity implements ITra
         cart.setLocomotive(this);
         this.prevRails.addLast(new RailState(blockPos, dir, blockState.get(((AbstractRailBlock)blockState.getBlock()).getShapeProperty())));
         ((ITrainCart)e).setWagon(true);
+    }
+
+    @Redirect(method="snapPositionToRail", at=@At(value= "INVOKE", target="Lnet/minecraft/util/math/MathHelper;floor(D)I", ordinal = 1))
+    private int yCoordFix1(double yCoord) {
+        return yCoordFix(yCoord);
+    }
+
+    @Redirect(method="snapPositionToRailWithOffset", at=@At(value= "INVOKE", target="Lnet/minecraft/util/math/MathHelper;floor(D)I", ordinal = 1))
+    private int yCoordFix2(double yCoord) {
+        return yCoordFix(yCoord);
+    }
+
+    @Redirect(method="tick", at=@At(value= "INVOKE", target="Lnet/minecraft/util/math/MathHelper;floor(D)I", ordinal = 1))
+    private int yCoordFix3(double yCoord) {
+        return yCoordFix(yCoord);
+    }
+
+
+    private int yCoordFix(double yCoord){
+        return (int) Math.round(yCoord);
     }
 
     @Override
