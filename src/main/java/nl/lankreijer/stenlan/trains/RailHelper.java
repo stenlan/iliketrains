@@ -2,8 +2,10 @@ package nl.lankreijer.stenlan.trains;
 
 import net.minecraft.block.enums.RailShape;
 import net.minecraft.util.Pair;
+import net.minecraft.util.math.BlockPos;
 import net.minecraft.util.math.Direction;
 import net.minecraft.util.math.Vec3d;
+import net.minecraft.util.math.Vec3i;
 import org.apache.commons.lang3.NotImplementedException;
 
 import java.util.Arrays;
@@ -55,7 +57,7 @@ public class RailHelper {
         return DIR_MAP_ENTRY.get(shape);
     }
 
-    public static Direction entryToExit(RailShape shape, Direction entryDir) {
+    public static Direction entryToExitDir(RailShape shape, Direction entryDir) {
         Pair<Direction, Direction> entryDirs = toEntryDirs(shape);
         Pair<Direction, Direction> exitDirs = toExitDirs(shape);
         if (entryDirs.getLeft() == entryDir) { // if we can properly follow the rail
@@ -78,5 +80,21 @@ public class RailHelper {
                     return entryDir;
             }
         }
+    }
+
+    public static Vec3i entryToExitOffset(RailShape shape, Direction entryDir) {
+        Vec3i endDiff = entryToExitDir(shape, entryDir).getVector();
+        switch (shape) {
+            case ASCENDING_EAST:
+            case ASCENDING_WEST:
+            case ASCENDING_NORTH:
+            case ASCENDING_SOUTH:
+                if (entryDir == toEntryDirs(shape).getLeft()) { // going uphill
+                    endDiff = endDiff.up();
+                }
+            default:
+                break;
+        }
+        return endDiff;
     }
 }

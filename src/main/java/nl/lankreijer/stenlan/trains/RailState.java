@@ -59,7 +59,7 @@ public class RailState {
             case ASCENDING_WEST:
             case ASCENDING_NORTH:
             case ASCENDING_SOUTH:
-                if (dir != RailHelper.toExitDirs(this.shape).getLeft()) { // not going uphill, TODO: smooth this out?
+                if (dir != RailHelper.toEntryDirs(this.shape).getLeft()) { // not going uphill, TODO: smooth this out?
                     startPos = startPos.add(0, 1, 0);
                 }
             default:
@@ -69,14 +69,14 @@ public class RailState {
     }
 
     public Vec3d endPos() {
-        Direction endDir = RailHelper.entryToExit(this.shape, this.dir);
+        Direction endDir = RailHelper.entryToExitDir(this.shape, this.dir);
         Vec3d endPos = toPos(endDir);
         switch (shape) {
             case ASCENDING_EAST:
             case ASCENDING_WEST:
             case ASCENDING_NORTH:
             case ASCENDING_SOUTH:
-                if (dir == RailHelper.toExitDirs(this.shape).getLeft()) { // going uphill
+                if (dir == RailHelper.toEntryDirs(this.shape).getLeft()) { // going uphill
                     endPos = endPos.add(0, 1, 0);
                 }
             default:
@@ -86,7 +86,7 @@ public class RailState {
     }
 
     public Direction exitDir() {
-        return RailHelper.entryToExit(this.shape, this.dir);
+        return RailHelper.entryToExitDir(this.shape, this.dir);
     }
 
     public Vec3d calcPos(double progress) {
@@ -95,7 +95,7 @@ public class RailState {
         return startPos.add(diff.multiply(progress));
     }
 
-    public double calcProgress(Vec3d pos) { // TODO: take into account minecarts aren't exactly on y=0
+    public double calcProgress(Vec3d pos) {
         Vec3d startPos = startPos();
         Vec3d endDiff = endPos().subtract(startPos);
         Vec3d currDiff = pos.subtract(startPos);

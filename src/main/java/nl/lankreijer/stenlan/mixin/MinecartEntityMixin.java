@@ -9,6 +9,7 @@ import nl.lankreijer.stenlan.interfaces.ITrainCart;
 import org.spongepowered.asm.mixin.Mixin;
 import org.spongepowered.asm.mixin.injection.At;
 import org.spongepowered.asm.mixin.injection.Inject;
+import org.spongepowered.asm.mixin.injection.Redirect;
 import org.spongepowered.asm.mixin.injection.callback.CallbackInfoReturnable;
 
 import java.util.concurrent.atomic.AtomicReference;
@@ -19,6 +20,7 @@ public abstract class MinecartEntityMixin {
 
     @Inject(method="interact", at=@At(value="HEAD"), cancellable=true)
     private void onInteract(PlayerEntity player, Hand hand, CallbackInfoReturnable<ActionResult> ci) {
+        System.out.println("Interact");
         if(player.getStackInHand(hand).getItem() == Items.WOODEN_HOE) {
             System.out.println("Making train...");
             AtomicReference<MinecartEntity> closestEntity = new AtomicReference<>();
@@ -39,5 +41,10 @@ public abstract class MinecartEntityMixin {
             ci.setReturnValue(ActionResult.CONSUME);
             ci.cancel();
         }
+    }
+
+    @Redirect(method="interact", at=@At(value="INVOKE", target="Lnet/minecraft/entity/vehicle/MinecartEntity;hasPassengers()Z"))
+    public boolean hasPassengers(MinecartEntity me) {
+        return false;
     }
 }
