@@ -101,4 +101,8 @@ public class RailState {
         Vec3d currDiff = pos.subtract(startPos);
         return Math.sqrt(currDiff.lengthSquared() / endDiff.lengthSquared()); // assumes pos is on line
     }
+
+    public RailState reverse() {
+        return new RailState(this.pos, this.exitDir().getOpposite(), this.shape);
+    }
 }

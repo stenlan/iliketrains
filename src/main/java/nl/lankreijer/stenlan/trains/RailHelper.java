@@ -12,7 +12,7 @@ import java.util.Arrays;
 import java.util.Map;
 import java.util.stream.Collectors;
 
-public class RailHelper {
+public class RailHelper { // TODO: integrate this into railState?
     public static Direction fromVector(Vec3d vec) {
         boolean useX = Math.abs(vec.x) > Math.abs(vec.z);
         return Direction.fromVector(useX ? vec.x > 0 ? 1 : -1 : 0, 0, !useX ? vec.z > 0 ? 1 : -1 : 0);
