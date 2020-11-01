@@ -8,6 +8,7 @@
     "MinecartEntityMixin"
   ],
   "client": [
+    "ProjectileUtilMixin"
   ],
   "injectors": {
     "defaultRequire": 1
