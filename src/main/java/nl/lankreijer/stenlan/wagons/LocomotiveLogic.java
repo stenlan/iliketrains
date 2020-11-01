@@ -55,13 +55,14 @@ public class LocomotiveLogic extends CartLogic {
         }
 
         RailState firstRailState = prevRails.peekFirst();
-        BlockPos latestPos = null;
+        BlockPos latestPos = firstRailState.pos;
         RailIterator it = new RailIterator(firstRailState, this.minecart.world);
-        for (int i = 0; i < 3 && it.hasNext(); i++) {
+        for (int i = 0; i < 3 && it.hasNext() && !railPos.equals(latestPos); i++) {
             RailState newState = it.next();
-            prevRails.addFirst(newState);
             latestPos = newState.pos;
+            prevRails.addFirst(newState);
         }
+
         if (!railPos.equals(latestPos)) {
             System.out.println("Warning: failed to track rails");
         }
