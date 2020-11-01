@@ -55,26 +55,14 @@ public class LocomotiveLogic extends CartLogic {
         }
 
         RailState firstRailState = prevRails.peekFirst();
-        BlockPos trackingPos = firstRailState.pos;
-        Direction trackingDir = firstRailState.dir;
-        RailShape trackingShape = firstRailState.shape;
-        for (int i = 0; i < 3 && !trackingPos.equals(railPos); i++) { // TODO: Make this use railIterator/RailFollower
-            Direction oldExitDir = RailHelper.entryToExitDir(trackingShape, trackingDir);
-            trackingPos = trackingPos.add(RailHelper.entryToExitOffset(trackingShape, trackingDir));
-            BlockState state = this.minecart.world.getBlockState(trackingPos);
-            if (!AbstractRailBlock.isRail(state)) {
-                trackingPos = trackingPos.down();
-                state = this.minecart.world.getBlockState(trackingPos);
-                if (!AbstractRailBlock.isRail(state)) { // error
-                    break;
-                }
-            }
-            // assertion: blockState is rail
-            trackingDir = oldExitDir;
-            trackingShape = state.get(((AbstractRailBlock)state.getBlock()).getShapeProperty());
-            prevRails.addFirst(new RailState(trackingPos, trackingDir, trackingShape));
+        BlockPos latestPos = null;
+        RailIterator it = new RailIterator(firstRailState, this.minecart.world);
+        for (int i = 0; i < 3 && it.hasNext(); i++) {
+            RailState newState = it.next();
+            prevRails.addFirst(newState);
+            latestPos = newState.pos;
         }
-        if (!trackingPos.equals(railPos)) {
+        if (!railPos.equals(latestPos)) {
             System.out.println("Warning: failed to track rails");
         }
 
@@ -165,7 +153,7 @@ public class LocomotiveLogic extends CartLogic {
         if (oneWay) {
             it1 = new RailIterator(this.prevRails.peekLast().reverse(), world, false, true);
         } else {
-            it1 = new RailIterator(new RailState(this.getRailPos(), entryDirs.getLeft(), shape), world, false, true); // TODO: only go 1 way when we already have a wagon
+            it1 = new RailIterator(new RailState(this.getRailPos(), entryDirs.getLeft(), shape), world, false, true);
         }
 
         RailIterator it2 = new RailIterator(new RailState(this.getRailPos(), entryDirs.getRight(), shape), world, false, true); // go both ways
